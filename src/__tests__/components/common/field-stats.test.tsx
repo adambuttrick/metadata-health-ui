@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { FieldStats, ViewMode } from '@/components/common/field-stats';
 import { useContainerWidth } from '@/lib/hooks/use-container-width';
+import { Stats } from '@/lib/types/api';
 
 jest.mock('@/lib/hooks/use-container-width');
 jest.mock('@/contexts/stats-view-context', () => ({

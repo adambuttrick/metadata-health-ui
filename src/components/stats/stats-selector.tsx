@@ -69,12 +69,27 @@ export function StatsSelector({ stats, className }: StatsSelectorProps) {
 
   return (
     <Select value={selectedView} onValueChange={handleViewChange}>
-      <SelectTrigger className={cn("text-center justify-center", className)}>
-        <SelectValue placeholder="Select view" />
+      <SelectTrigger 
+        className={cn(
+          "justify-center whitespace-normal text-center h-auto py-2",
+          "w-full sm:w-[300px]",
+          "min-w-full sm:min-w-[300px]",
+          className
+        )}
+      >
+        <SelectValue className="text-center [&>span]:text-center [&>span]:w-full" />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent 
+        className="w-full sm:w-[300px] min-w-[250px]"
+        position="popper"
+        sideOffset={4}
+      >
         {availableViews.map((view) => (
-          <SelectItem key={view} value={view}>
+          <SelectItem 
+            key={view} 
+            value={view}
+            className="text-center whitespace-normal py-2"
+          >
             {view === 'summary' 
               ? 'All' 
               : view.replace(/([A-Z])/g, ' $1').trim()}

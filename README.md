@@ -1,6 +1,6 @@
-# DataCite Metadata Health Reports UI
+# Metadata Health Reports UI
 
-Demo/example UI for DataCite Metadata Health Reports.
+Demo/example UI for Metadata Health Reports.
 
 
 ## Setup

@@ -91,6 +91,10 @@ describe('EntitySearch', () => {
     });
 
     it('handles missing provider relationship for client', async () => {
+      // Temporarily suppress console.error since we expect an error to be logged
+      const originalError = console.error;
+      console.error = jest.fn();
+
       const clientWithoutProvider = {
         ...mockClient,
         relationships: { provider: undefined },
@@ -111,7 +115,22 @@ describe('EntitySearch', () => {
       
       fireEvent.click(screen.getByText('Test Client'));
       
+      expect(console.error).toHaveBeenCalledWith(
+        'Provider relationship not found for client:',
+        expect.objectContaining({
+          id: 'client1',
+          type: 'clients',
+          attributes: expect.objectContaining({
+            name: 'Test Client',
+            symbol: 'CLIENT'
+          }),
+          relationships: { provider: undefined }
+        })
+      );
       expect(mockNavigateToProvider).not.toHaveBeenCalled();
+
+      // Restore console.error
+      console.error = originalError;
     });
   });
 

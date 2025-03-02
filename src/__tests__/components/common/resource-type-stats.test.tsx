@@ -79,7 +79,7 @@ describe('ResourceTypeStats', () => {
     // Check for the most common type info
     expect(screen.getByText('Most common:')).toBeInTheDocument();
     expect(screen.getByText('journal-article')).toBeInTheDocument();
-    expect(screen.getByText('50% of total')).toBeInTheDocument();
+    expect(screen.getByText('(50.0% of total)')).toBeInTheDocument();
   });
 
   it('does not render when stats are undefined', () => {

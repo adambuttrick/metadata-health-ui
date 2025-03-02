@@ -5,7 +5,7 @@ import { Text } from '@/components/typography/typography';
 
 export default function Home() {
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
       <div className="w-full max-w-2xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
         <div>
           <Text variant="h1" className="text-3xl font-bold text-datacite-dark-blue text-center mb-8 sm:mb-12">

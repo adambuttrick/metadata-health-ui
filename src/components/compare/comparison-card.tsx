@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   getFieldDescription, 
   getFieldDisplayLabel,
@@ -75,7 +75,24 @@ const ComparisonCard: React.FC<ComparisonCardProps> = ({
   const { selectedView } = useStatsView();
   const { data: clientData, isLoading: isClientLoading } = useClientStats(itemType === 'client' ? id : '');
   const { data: providerData, isLoading: isProviderLoading } = useProviderStats(itemType === 'provider' ? id : '');
-  
+  const titleRef = useRef<HTMLDivElement>(null);
+  const [isTitleTruncated, setIsTitleTruncated] = useState(false);
+
+  useEffect(() => {
+    const checkTruncation = () => {
+      if (titleRef.current) {
+        setIsTitleTruncated(
+          titleRef.current.scrollWidth > titleRef.current.clientWidth ||
+          titleRef.current.scrollHeight > titleRef.current.clientHeight
+        );
+      }
+    };
+
+    checkTruncation();
+    window.addEventListener('resize', checkTruncation);
+    return () => window.removeEventListener('resize', checkTruncation);
+  }, [name]);
+
   const statsData = itemType === 'client' ? clientData : providerData;
   const isLoading = itemType === 'client' ? isClientLoading : isProviderLoading;
 
@@ -129,28 +146,57 @@ const ComparisonCard: React.FC<ComparisonCardProps> = ({
 
   return (
     <div 
-      className="bg-white rounded-lg shadow-lg p-6 relative border-2 border-gray-200"
+      className="bg-white rounded-lg shadow-lg p-6 pt-12 relative border-2 border-gray-200 flex flex-col"
       role="region"
       aria-label={`Comparison card for ${name}`}
     >
       {onRemove && (
         <button
           onClick={onRemove}
-          className="absolute top-2 right-2 p-2 hover:bg-gray-100 rounded-full transition-colors border border-gray-300"
+          className="absolute top-3 right-3 p-2 hover:bg-gray-100 rounded-full transition-colors border border-gray-300"
           aria-label={`Remove ${name} from comparison`}
         >
           <X className="h-4 w-4 text-gray-700" aria-hidden="true" />
         </button>
       )}
 
-      <div className="mt-6">
+      <div className="min-h-[120px] flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-4 border-b border-border w-full">
-          <Text variant="h2" id={`comparison-title-${id}`} className="text-left">
-            {name}
-          </Text>
+          <div className="pr-8">
+            <div className="w-full">
+              {isTitleTruncated ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Text 
+                        variant="h2" 
+                        id={`comparison-title-${id}`} 
+                        className="text-left line-clamp-2 text-base font-semibold max-w-full"
+                        ref={titleRef}
+                      >
+                        {name}
+                      </Text>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <span className="text-sm">{name}</span>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <Text 
+                  variant="h2" 
+                  id={`comparison-title-${id}`} 
+                  className="text-left line-clamp-2 text-base font-semibold max-w-full"
+                  ref={titleRef}
+                >
+                  {name}
+                </Text>
+              )}
+            </div>
+          </div>
           <Link 
             href={itemType === 'provider' ? `/providers/${id}` : `/providers/${providerId}?client=${id}`}
-            className="text-sm text-muted-foreground hover:text-primary hover:underline inline-flex items-center"
+            className="text-sm text-muted-foreground hover:text-primary hover:underline inline-flex items-center mt-auto"
             aria-describedby={`comparison-title-${id}`}
           >
             <Text variant="small">

@@ -8,7 +8,7 @@ import { useProviders, useClients } from '@/lib/hooks/use-entities';
 import { useProviderNavigation } from '@/lib/hooks/use-provider-navigation';
 import { Provider, Client } from '@/lib/types/api';
 import { cn } from '@/lib/utils';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Text } from '@/components/typography/typography';
 
 interface EntitySearchProps {
@@ -35,6 +35,7 @@ export function EntitySearch({
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const [isFocused, setIsFocused] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { navigateToProvider } = useProviderNavigation();
@@ -161,14 +162,30 @@ export function EntitySearch({
             value={searchTerm}
             onChange={handleSearchChange}
             onKeyDown={handleKeyDown}
-            className={cn("w-full pl-9 pr-4 text-center")}
-            placeholder="Northwestern University, Zenodo..."
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            className={cn("w-full pl-9 pr-9 text-center")}
+            placeholder={isFocused ? "" : "Northwestern University, Zenodo..."}
             aria-label="Search organizations and repositories"
           />
+          {searchTerm && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setIsOpen(false);
+                setError(undefined);
+                inputRef.current?.focus();
+              }}
+              className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {error && (
-          <Text variant="small" className="mt-2 text-destructive" role="alert">
+          <Text variant="small" className="mt-2 text-destructive text-center block w-full" role="alert">
             {error}
           </Text>
         )}
