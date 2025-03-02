@@ -3,13 +3,20 @@ import { FieldCategory } from '@/lib/constants';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { Info, ChevronDown } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { 
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatCompleteness } from '@/lib/utils'; 
 import { 
   getFieldDescription, 
@@ -21,14 +28,12 @@ import {
   getTextColor,
   getCategoryColor
 } from '@/lib/constants';
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useStatsView } from '@/contexts/stats-view-context';
 import { Container } from '@/components/layout/container';
 import { Stack } from '@/components/layout/stack';
 import { Text } from '@/components/typography/typography';
 import { useContainerWidth } from '@/lib/hooks/use-container-width';
-
-type ExpandedSubfields = Record<`${string}-${string}`, boolean>;
 
 export enum ViewMode {
   Summary = 'summary',
@@ -71,33 +76,43 @@ const getCategoryTitle = (category: string): string => {
 
 
 const DetailedFieldStats = ({ stats }: DetailedFieldStatsProps) => {
-  const fields = Object.entries(stats?.fields || {})
-    .sort(([a], [b]) => a.localeCompare(b));
-  const [expandedSubfields, setExpandedSubfields] = useState<ExpandedSubfields>({});
   const { containerRef, width } = useContainerWidth();
-  const isNarrow = width > 0 && width < 1024; // Threshold for switching layouts
+  const isNarrow = width > 0 && width < 1024;
+  const [selectedSubfields, setSelectedSubfields] = useState<Record<string, string | 'all'>>({});
 
-  const toggleSubfield = (fieldName: string, subfieldName: string): void => {
-    const key = `${fieldName}-${subfieldName}` as const;
-    setExpandedSubfields(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
+  useEffect(() => {
+    const initialSubfields: Record<string, string | 'all'> = {};
+    setSelectedSubfields(initialSubfields);
+  }, []);
 
-  const isSubfieldExpanded = (fieldName: string, subfieldName: string): boolean => {
-    const key = `${fieldName}-${subfieldName}` as const;
-    return expandedSubfields[key] ?? false;
-  };
+  // Memoize the sorted fields to prevent unnecessary recalculations
+  const sortedFields = useMemo(() => 
+    Object.entries(stats?.fields || {}).sort(([a], [b]) => a.localeCompare(b)),
+    [stats?.fields]
+  );
 
-  const isValidSubfield = (entry: [string, unknown]): entry is [string, SubfieldInfo] => {
+  const isValidSubfield = useCallback((entry: [string, unknown]): entry is [string, SubfieldInfo] => {
     const [, subfieldData] = entry;
     return subfieldData !== null && 
       typeof subfieldData === 'object' && 
       'count' in subfieldData && 
       typeof subfieldData.count === 'number' && 
       subfieldData.count > 0;
-  };
+  }, []);
+
+  const handleSubfieldChange = useCallback((fieldName: string, subfieldName: string | null) => {
+    setSelectedSubfields(prev => {
+      if (subfieldName === null) {
+        const newState = { ...prev };
+        delete newState[fieldName];
+        return newState;
+      }
+      return {
+        ...prev,
+        [fieldName]: subfieldName
+      };
+    });
+  }, []);
 
   return (
     <Stack spacing="lg" className="w-full">
@@ -106,7 +121,7 @@ const DetailedFieldStats = ({ stats }: DetailedFieldStatsProps) => {
         <div className="border-t-2 border-gray-300 my-4" role="separator"></div>
       </div>
       <Stack spacing="md">
-        {fields.map(([fieldName, fieldData]) => {
+        {sortedFields.map(([fieldName, fieldData]) => {
           const completeness = fieldData.completeness;
           const hasSubfields = fieldData.subfields && Object.keys(fieldData.subfields).length > 0;
 
@@ -165,7 +180,7 @@ const DetailedFieldStats = ({ stats }: DetailedFieldStatsProps) => {
                           <div className="flex items-center gap-2">
                             <Progress 
                               value={completeness * 100} 
-                              className="h-2 w-24 bg-primary/20"
+                              className="w-24 h-2 bg-primary/20"
                               indicatorClassName={getCategoryColor(fieldData.fieldStatus, completeness)}
                             />
                             <Text 
@@ -180,20 +195,78 @@ const DetailedFieldStats = ({ stats }: DetailedFieldStatsProps) => {
                     )}
                   </div>
 
+                  {/* Desktop Header - Visible when not narrow */}
+                  {!isNarrow && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Text 
+                            variant="h3" 
+                            className="truncate" 
+                            title={getFieldDisplayLabel(fieldName)}
+                          >
+                            {getFieldDisplayLabel(fieldName)}
+                          </Text>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button 
+                                  className="inline-flex flex-shrink-0 p-1 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                  aria-label={`Information about ${getFieldDisplayLabel(fieldName)}`}
+                                >
+                                  <Info className="h-4 w-4 text-gray-700" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {getFieldDescription(fieldName)}
+                                <a
+                                  href={getFieldUrl(fieldName)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-700 hover:underline block mt-2"
+                                >
+                                  Learn more
+                                </a>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Text variant="small" className="text-gray-700">Completeness</Text>
+                        <div className="flex items-center gap-2">
+                          <Progress 
+                            value={completeness * 100} 
+                            className="w-24 h-2 bg-primary/20"
+                            indicatorClassName={getCategoryColor(fieldData.fieldStatus, completeness)}
+                          />
+                          <Text 
+                            variant="body" 
+                            className={cn("font-medium", getTextColor(fieldData.fieldStatus, completeness))}
+                          >
+                            {formatCompleteness(completeness)}
+                          </Text>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="border-t-2 border-gray-300 my-4"></div>
 
                   {/* Stats Grid */}
                   <div className={cn(
-                    "grid gap-4",
+                    "w-full",
                     isNarrow ? "col-span-2" : "contents"
                   )}>
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className={cn(
+                      "grid gap-4",
+                      isNarrow ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-4"
+                    )}>
                       <div className="space-y-1">
                         <Text variant="small" className="text-gray-700">Category</Text>
                         <Text 
                           variant="body" 
-                          className="font-medium capitalize"
+                          className="font-medium capitalize text-sm sm:text-base"
                           title={getCategoryTitle(fieldData.fieldStatus)}
                           aria-label={`Field category: ${getCategoryTitle(fieldData.fieldStatus)}`}
                         >
@@ -205,7 +278,7 @@ const DetailedFieldStats = ({ stats }: DetailedFieldStatsProps) => {
                         <Text variant="small" className="text-gray-700">Present</Text>
                         <Text 
                           variant="body" 
-                          className="font-medium tabular-nums"
+                          className="font-medium tabular-nums text-sm sm:text-base"
                           title={fieldData.count.toLocaleString()}
                           aria-label={`${fieldData.count.toLocaleString()} records present`}
                         >
@@ -217,7 +290,7 @@ const DetailedFieldStats = ({ stats }: DetailedFieldStatsProps) => {
                         <Text variant="small" className="text-gray-700">Missing</Text>
                         <Text 
                           variant="body" 
-                          className="font-medium tabular-nums"
+                          className="font-medium tabular-nums text-sm sm:text-base"
                           title={fieldData.missing.toLocaleString()}
                           aria-label={`${fieldData.missing.toLocaleString()} missing instances`}
                         >
@@ -229,7 +302,7 @@ const DetailedFieldStats = ({ stats }: DetailedFieldStatsProps) => {
                         <Text variant="small" className="text-gray-700">Instances</Text>
                         <Text 
                           variant="body" 
-                          className="font-medium tabular-nums"
+                          className="font-medium tabular-nums text-sm sm:text-base"
                           title={fieldData.instances.toLocaleString()}
                           aria-label={`${fieldData.instances.toLocaleString()} instances`}
                         >
@@ -242,169 +315,274 @@ const DetailedFieldStats = ({ stats }: DetailedFieldStatsProps) => {
                   {/* Subfields Section */}
                   {hasSubfields && fieldData.subfields && Object.values(fieldData.subfields)?.some(subfield => subfield.count > 0) && (
                     <div className={cn(
-                      "space-y-2",
+                      "space-y-4 w-full",
                       isNarrow ? "col-span-full" : "col-span-6"
                     )}>
-                      <button
-                        onClick={() => toggleSubfield(fieldName, 'all')}
-                        className="flex items-center justify-between p-2 bg-white rounded-md border border-gray-300 hover:bg-gray-50 transition-colors w-auto"
-                        aria-expanded={isSubfieldExpanded(fieldName, 'all')}
-                        aria-controls={`subfields-${fieldName}`}
-                      >
-                        <Text variant="body" className="font-medium">Subfields</Text>
-                        <ChevronDown
-                          className={cn(
-                            "h-4 w-4 text-gray-500 transition-transform ml-2",
-                            isSubfieldExpanded(fieldName, 'all') ? "rotate-180" : ""
-                          )}
-                        />
-                      </button>
+                      <div>
+                        <div className="border-t-2 border-gray-300 my-4" role="separator"></div>
+                        <Text variant="h3">Subfields</Text>
+                      </div>
 
-                      {isSubfieldExpanded(fieldName, 'all') && (
-                        <div 
-                          id={`subfields-${fieldName}`}
-                          className="space-y-4 mt-2"
-                        >
-                          {Object.entries(fieldData.subfields)
-                            .filter(isValidSubfield)
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([subfieldName, subfieldData]) => {
-                              const isExpanded = isSubfieldExpanded(fieldName, subfieldName);
-                              return (
-                                <div 
-                                  key={subfieldName} 
-                                  className={cn(
-                                    "rounded-lg border border-gray-200 overflow-hidden",
-                                    isNarrow ? "" : "ml-6"
-                                  )}
+                      <div className="rounded-lg border border-gray-200 overflow-hidden">
+                        <div className="px-4 py-3 bg-gray-50">
+                          <div className="flex flex-wrap gap-y-3">
+                            <div className={cn(
+                              "flex items-center gap-2",
+                              isNarrow ? "w-full" : "w-auto"
+                            )}>
+                              <Select
+                                value={selectedSubfields[fieldName] || ""}
+                                onValueChange={(value) => handleSubfieldChange(fieldName, value || null)}
+                              >
+                                <SelectTrigger className="min-h-[2.5rem] text-xs sm:text-sm font-medium px-3 py-2 w-[300px]">
+                                  <SelectValue 
+                                    placeholder="Select subfield"
+                                    className="leading-tight line-clamp-2 text-xs sm:text-sm"
+                                  />
+                                </SelectTrigger>
+                                <SelectContent 
+                                  className="w-[300px] max-w-[85vw]"
+                                  align="start"
+                                  side="bottom"
+                                  position="popper"
                                 >
-                                  <button
-                                    onClick={() => toggleSubfield(fieldName, subfieldName)}
-                                    className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
-                                    aria-expanded={isExpanded}
-                                    aria-controls={`subfield-content-${fieldName}-${subfieldName}`}
+                                  <SelectItem 
+                                    value="all" 
+                                    className="py-2 px-3 text-sm"
                                   >
-                                    <div className="flex items-center gap-2">
-                                      <Text variant="body" className="font-medium">
-                                        {getSubfieldDisplayLabel(fieldName, subfieldName)}
-                                      </Text>
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="inline-flex p-1 hover:bg-gray-200 rounded-full transition-colors">
-                                              <Info className="h-4 w-4 text-gray-700" />
-                                            </span>
-                                          </TooltipTrigger>
-                                          <TooltipContent className="text-xs sm:text-sm text-gray-700 whitespace-normal break-words text-popover max-w-xs">
-                                            {getSubfieldDescription(fieldName, subfieldName)}
-                                            <a
-                                              href={getSubfieldUrl(fieldName, subfieldName)}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-blue-700 hover:underline block mt-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                              aria-label={`Learn more about ${getSubfieldDisplayLabel(fieldName, subfieldName)} (opens in new tab)`}
-                                            >
-                                              Learn more
-                                            </a>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                      <div className="flex items-center gap-2">
-                                        <Progress 
-                                          value={subfieldData.completeness * 100} 
-                                          className="h-2 w-24 bg-[#EBF0F5]"
-                                          indicatorClassName="bg-gray-900"
-                                        />
-                                        <Text 
-                                          variant="body" 
-                                          className="font-medium"
-                                        >
-                                          {formatCompleteness(subfieldData.completeness)}
-                                        </Text>
-                                      </div>
-                                      <ChevronDown
-                                        className={cn(
-                                          "h-4 w-4 text-gray-500 transition-transform",
-                                          isExpanded ? "rotate-180" : ""
-                                        )}
-                                      />
-                                    </div>
+                                    <span className="pr-6">All Subfields</span>
+                                  </SelectItem>
+                                  {Object.entries(fieldData.subfields)
+                                    .filter(isValidSubfield)
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([subfieldName]) => (
+                                      <SelectItem 
+                                        key={subfieldName} 
+                                        value={subfieldName}
+                                        className="py-2 px-3 leading-tight text-sm"
+                                      >
+                                        <span className="line-clamp-2">
+                                          {getSubfieldDisplayLabel(fieldName, subfieldName)}
+                                        </span>
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                              {selectedSubfields[fieldName] && (
+                                <>
+                                  <div className="w-4" />
+                                  <button
+                                    onClick={() => handleSubfieldChange(fieldName, null)}
+                                    className="px-2 py-1 text-xs font-medium text-white bg-destructive hover:bg-destructive/90 rounded transition-colors"
+                                    aria-label="Clear subfield selection"
+                                  >
+                                    Clear
                                   </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
 
-                                  {isExpanded && (
-                                    <div 
-                                      id={`subfield-content-${fieldName}-${subfieldName}`}
-                                      className="px-4 py-3"
-                                    >
-                                      <div className="grid grid-cols-3 gap-4">
-                                        <div className="space-y-1">
-                                          <Text variant="small" className="text-gray-700">Present</Text>
-                                          <Text variant="body" className="font-medium">
-                                            {subfieldData.count.toLocaleString()}
-                                          </Text>
-                                        </div>
-                                        <div className="space-y-1">
-                                          <Text variant="small" className="text-gray-700">Missing</Text>
-                                          <Text variant="body" className="font-medium">
-                                            {subfieldData.missing.toLocaleString()}
-                                          </Text>
-                                        </div>
-                                        <div className="space-y-1">
-                                          <Text variant="small" className="text-gray-700">Instances</Text>
-                                          <Text variant="body" className="font-medium">
-                                            {subfieldData.instances.toLocaleString()}
-                                          </Text>
-                                        </div>
-                                      </div>
-                                      {subfieldData.values && Object.keys(subfieldData.values).length > 0 && (
-                                        <>
-                                          <div className="border-t border-gray-200 my-4"></div>
-                                          <div className="space-y-2">
-                                            {Object.entries(subfieldData.values)
-                                              .filter(entry => entry[1] > 0)
-                                              .sort((a, b) => b[1] - a[1])
-                                              .map(([valueKey, valueCount]) => {
-                                                const percentage = (valueCount / subfieldData.instances) * 100;
-                                                return (
-                                                  <div key={valueKey} className="space-y-1">
-                                                    <div className="flex justify-between items-center">
-                                                      <Text variant="body" className="font-medium">
-                                                        {valueKey}
-                                                      </Text>
-                                                      <Text variant="body" className="text-gray-600">
-                                                        {formatCompleteness(percentage / 100)}
-                                                      </Text>
-                                                    </div>
-                                                    <div className="relative">
-                                                      <Progress 
-                                                        value={percentage} 
-                                                        className="h-2 bg-[#EBF0F5]"
-                                                        indicatorClassName="bg-gray-900"
-                                                      />
-                                                      <div className="flex justify-between items-center mt-1">
-                                                        <Text variant="small" className="text-gray-600">
-                                                          log scale
-                                                        </Text>
-                                                        <Text variant="small" className="text-gray-600 tabular-nums">
-                                                          {valueCount.toLocaleString()} / {subfieldData.instances.toLocaleString()}
-                                                        </Text>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                );
-                                              })}
-                                          </div>
-                                        </>
-                                      )}
+                        {selectedSubfields[fieldName] === 'all' ? (
+                          <div className="divide-y divide-gray-200 bg-white w-full">
+                            {Object.entries(fieldData.subfields)
+                              .filter(isValidSubfield)
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .map(([subfieldName, subfieldData]) => (
+                                <div key={subfieldName} className="p-4 space-y-4 bg-white">
+                                  <div className="flex items-start gap-2">
+                                    <Text variant="h3" className="font-medium">
+                                      {getSubfieldDisplayLabel(fieldName, subfieldName)}
+                                    </Text>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="inline-flex flex-shrink-0 p-1 hover:bg-gray-200 rounded-full transition-colors mt-0.5">
+                                            <Info className="h-4 w-4 text-gray-700" />
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="text-xs sm:text-sm text-gray-700 whitespace-normal break-words text-popover max-w-xs">
+                                          {getSubfieldDescription(fieldName, subfieldName)}
+                                          <a
+                                            href={getSubfieldUrl(fieldName, subfieldName)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-700 hover:underline block mt-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                            aria-label={`Learn more about ${getSubfieldDisplayLabel(fieldName, subfieldName)} (opens in new tab)`}
+                                          >
+                                            Learn more
+                                          </a>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
+
+                                  <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-1">
+                                      <Text variant="small" className="text-gray-700">Present</Text>
+                                      <Text variant="body" className="font-medium">
+                                        {subfieldData.count.toLocaleString()}
+                                      </Text>
                                     </div>
+                                    <div className="space-y-1">
+                                      <Text variant="small" className="text-gray-700">Missing</Text>
+                                      <Text variant="body" className="font-medium">
+                                        {subfieldData.missing.toLocaleString()}
+                                      </Text>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Text variant="small" className="text-gray-700">Instances</Text>
+                                      <Text variant="body" className="font-medium">
+                                        {subfieldData.instances.toLocaleString()}
+                                      </Text>
+                                    </div>
+                                  </div>
+
+                                  {Object.keys(subfieldData.values || {}).length > 0 && (
+                                    <>
+                                      <div className="border-t border-gray-200 my-4"></div>
+                                      <div className="space-y-2">
+                                        {Object.entries(subfieldData.values || {})
+                                          .filter(entry => entry[1] > 0)
+                                          .sort((a, b) => b[1] - a[1])
+                                          .map(([valueKey, valueCount]) => {
+                                            const totalInstances = subfieldData.instances || 1;
+                                            const percentage = (valueCount / totalInstances) * 100;
+                                            return (
+                                              <div key={valueKey} className="space-y-1">
+                                                <div className="flex justify-between items-center">
+                                                  <Text variant="body" className="font-medium">
+                                                    {valueKey}
+                                                  </Text>
+                                                  <Text variant="body" className="text-gray-600">
+                                                    {formatCompleteness(percentage / 100)}
+                                                  </Text>
+                                                </div>
+                                                <div className="relative">
+                                                  <Progress 
+                                                    value={percentage} 
+                                                    className="h-2 bg-[#EBF0F5]"
+                                                    indicatorClassName="bg-gray-900"
+                                                  />
+                                                  <div className="flex justify-between items-center mt-1">
+                                                    <Text variant="small" className="text-gray-600">
+                                                      log scale
+                                                    </Text>
+                                                    <Text variant="small" className="text-gray-600 tabular-nums">
+                                                      {valueCount.toLocaleString()} / {totalInstances.toLocaleString()}
+                                                    </Text>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                      </div>
+                                    </>
                                   )}
                                 </div>
-                              );
-                            })}
-                        </div>
-                      )}
+                              ))}
+                          </div>
+                        ) : (
+                          selectedSubfields[fieldName] && (
+                            <div className="p-4 space-y-4 bg-white">
+                              <div className="flex items-start gap-2">
+                                <Text variant="h3" className="font-medium">
+                                  {getSubfieldDisplayLabel(fieldName, selectedSubfields[fieldName])}
+                                </Text>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex flex-shrink-0 p-1 hover:bg-gray-200 rounded-full transition-colors mt-0.5">
+                                        <Info className="h-4 w-4 text-gray-700" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="text-xs sm:text-sm text-gray-700 whitespace-normal break-words text-popover max-w-xs">
+                                      {getSubfieldDescription(fieldName, selectedSubfields[fieldName])}
+                                      <a
+                                        href={getSubfieldUrl(fieldName, selectedSubfields[fieldName])}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-700 hover:underline block mt-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                        aria-label={`Learn more about ${getSubfieldDisplayLabel(fieldName, selectedSubfields[fieldName])} (opens in new tab)`}
+                                      >
+                                        Learn more
+                                      </a>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-4">
+                                <div className="space-y-1">
+                                  <Text variant="small" className="text-gray-700">Present</Text>
+                                  <Text variant="body" className="font-medium">
+                                    {fieldData.subfields[selectedSubfields[fieldName]].count.toLocaleString()}
+                                  </Text>
+                                </div>
+                                <div className="space-y-1">
+                                  <Text variant="small" className="text-gray-700">Missing</Text>
+                                  <Text variant="body" className="font-medium">
+                                    {fieldData.subfields[selectedSubfields[fieldName]].missing.toLocaleString()}
+                                  </Text>
+                                </div>
+                                <div className="space-y-1">
+                                  <Text variant="small" className="text-gray-700">Instances</Text>
+                                  <Text variant="body" className="font-medium">
+                                    {fieldData.subfields[selectedSubfields[fieldName]].instances.toLocaleString()}
+                                  </Text>
+                                </div>
+                              </div>
+
+                              {fieldData.subfields && 
+                               selectedSubfields[fieldName] && 
+                               fieldData.subfields[selectedSubfields[fieldName]] &&
+                               Object.keys(fieldData.subfields[selectedSubfields[fieldName]].values || {}).length > 0 && (
+                                <>
+                                  <div className="border-t border-gray-200 my-4"></div>
+                                  <div className="space-y-2">
+                                    {Object.entries(fieldData.subfields[selectedSubfields[fieldName]].values || {})
+                                      .filter(entry => entry[1] > 0)
+                                      .sort((a, b) => b[1] - a[1])
+                                      .map(([valueKey, valueCount]) => {
+                                        const selectedSubfield = fieldData.subfields?.[selectedSubfields[fieldName]];
+                                        const totalInstances = selectedSubfield?.instances || 1;
+                                        const percentage = (valueCount / totalInstances) * 100;
+                                        return (
+                                          <div key={valueKey} className="space-y-1">
+                                            <div className="flex justify-between items-center">
+                                              <Text variant="body" className="font-medium">
+                                                {valueKey}
+                                              </Text>
+                                              <Text variant="body" className="text-gray-600">
+                                                {formatCompleteness(percentage / 100)}
+                                              </Text>
+                                            </div>
+                                            <div className="relative">
+                                              <Progress 
+                                                value={percentage} 
+                                                className="h-2 bg-[#EBF0F5]"
+                                                indicatorClassName="bg-gray-900"
+                                              />
+                                              <div className="flex justify-between items-center mt-1">
+                                                <Text variant="small" className="text-gray-600">
+                                                  log scale
+                                                </Text>
+                                                <Text variant="small" className="text-gray-600 tabular-nums">
+                                                  {valueCount.toLocaleString()} / {totalInstances.toLocaleString()}
+                                                </Text>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -235,19 +235,25 @@ describe('Home Page', () => {
     });
 
     it('handles missing provider relationship gracefully', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error');
+      // Temporarily suppress console.error since we expect an error to be logged
+      const originalError = console.error;
+      console.error = jest.fn();
+      
       render(<Home />);
       const user = userEvent.setup();
       const clientElement = screen.getByTestId('client-without-provider');
       await user.click(clientElement);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(console.error).toHaveBeenCalledWith(
         'Provider relationship not found for client:',
         expect.objectContaining({
           id: 'client-1',
           relationships: {}
         })
       );
+
+      // Restore console.error
+      console.error = originalError;
     });
   });
 

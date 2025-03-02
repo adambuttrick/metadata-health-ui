@@ -203,13 +203,11 @@ export function ResourceTypeStats({ provider }: ResourceTypeStatsProps) {
               {selectedView === 'summary' ? (
                 <>
                   <span>All Resource Types</span>
-                  <span className="text-muted-foreground">•</span>
                   <span>Most common: </span>
                   <span className="font-medium text-foreground">
                     {camelCaseToSpaced(resourceTypeStats[0]?.type)}
                   </span>
-                  <span className="text-muted-foreground">•</span>
-                  <span>{displayPercentage.toFixed(0)}% of total</span>
+                  <span>({displayPercentage.toFixed(1)}% of total)</span>
                 </>
               ) : (
                 <>
@@ -217,8 +215,7 @@ export function ResourceTypeStats({ provider }: ResourceTypeStatsProps) {
                   <span className="font-medium text-foreground">
                     {camelCaseToSpaced(selectedView.charAt(0).toUpperCase() + selectedView.slice(1))}
                   </span>
-                  <span className="text-muted-foreground">•</span>
-                  <span>{displayPercentage.toFixed(0)}% of total</span>
+                  <span>({displayPercentage.toFixed(1)}% of total)</span>
                 </>
               )}
             </div>
@@ -232,7 +229,7 @@ export function ResourceTypeStats({ provider }: ResourceTypeStatsProps) {
             role="figure"
             aria-label={`Resource type distribution chart showing ${selectedView === 'summary' 
               ? 'all resource types' 
-              : `${camelCaseToSpaced(selectedView)} at ${displayPercentage.toFixed(0)}%`}`}
+              : `${camelCaseToSpaced(selectedView)} at ${displayPercentage.toFixed(1)}%`}`}
           >
             <div className="absolute inset-0 overflow-x-auto overflow-y-hidden">
               <div className="min-w-[800px] h-full">

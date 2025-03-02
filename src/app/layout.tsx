@@ -8,8 +8,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'DataCite Metadata Health Reports',
-  description: 'Monitor and analyze the quality and completeness of DataCite metadata records',
+  title: 'Metadata Health Reports',
+  description: 'Monitor and analyze the quality and completeness of metadata records',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
@@ -32,7 +32,7 @@ export default function RootLayout({
         <QueryProvider>
           <div className="min-h-screen bg-background flex flex-col">
             <Navigation />
-            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex-grow">
+            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex-grow mt-16 sm:mt-20">
               {children}
             </main>
             <Footer />

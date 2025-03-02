@@ -169,7 +169,7 @@ export function ProviderDetails({ providerId }: { providerId: string }) {
           />
         )}
         
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between w-full">
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-sm hover:text-foreground transition-colors"
@@ -177,12 +177,14 @@ export function ProviderDetails({ providerId }: { providerId: string }) {
             <ArrowLeft className="h-4 w-4" />
             <Text variant="small" className="text-muted-foreground hover:text-foreground transition-colors">Back to Search</Text>
           </Link>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 items-center min-w-[12rem]">
             <Text variant="small" className="font-medium text-muted-foreground">Resource Type</Text>
-            <StatsSelector 
-              stats={selectedTab === "repositories" && selectedClientData ? selectedClientData.stats : provider.stats} 
-              className="w-48" 
-            />
+            <div className="w-full">
+              <StatsSelector 
+                stats={selectedTab === "repositories" && selectedClientData ? selectedClientData.stats : provider.stats} 
+                className="w-full" 
+              />
+            </div>
           </div>
         </div>
 
